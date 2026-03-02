@@ -23,7 +23,7 @@ export interface MenuItem {
   image?: string;          // URL foto menu (opsional, pakai placeholder jika kosong)
   tags?: string[];         // Label: 'bestseller' | 'spicy' | 'new' | 'vegetarian'
   calories?: number;       // Info kalori (opsional)
-  isAvailable?: boolean;   // Stok tersedia
+  isAvailable?: 'available' | 'preorder' | boolean;   // Stok tersedia: 'available' = Tersedia, 'preorder' = Pre Order, false = Tidak tersedia
   stock: number;
 }
 

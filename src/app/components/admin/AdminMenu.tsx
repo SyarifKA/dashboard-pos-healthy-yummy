@@ -19,7 +19,7 @@ export default function AdminMenu() {
     emoji: '',
     desc: '',
     stock: '10',
-    isAvailable: true,
+    availabilityType: 'available' as 'available' | 'preorder',
     image: '',
   });
 
@@ -38,7 +38,7 @@ export default function AdminMenu() {
       emoji: '',
       desc: '',
       stock: '10',
-      isAvailable: true,
+      availabilityType: 'available',
       image: '',
     });
     setShowModal(true);
@@ -53,7 +53,7 @@ export default function AdminMenu() {
       emoji: item.emoji,
       desc: item.desc,
       stock: item.stock.toString(),
-      isAvailable: item.isAvailable ?? true,
+      availabilityType: (item.isAvailable === 'preorder' ? 'preorder' : item.isAvailable === false ? 'unavailable' : 'available') as 'available' | 'preorder',
       image: item.image ?? '',
     });
     setShowModal(true);
@@ -90,7 +90,7 @@ export default function AdminMenu() {
         emoji: formData.emoji,
         desc: formData.desc,
         stock,
-        isAvailable: formData.isAvailable,
+        isAvailable: formData.availabilityType === 'preorder' ? 'preorder' : formData.availabilityType === 'available',
         image: formData.image || undefined,
       });
     } else {
@@ -101,7 +101,7 @@ export default function AdminMenu() {
         emoji: formData.emoji,
         desc: formData.desc,
         stock,
-        isAvailable: formData.isAvailable,
+        isAvailable: formData.availabilityType === 'preorder' ? 'preorder' : formData.availabilityType === 'available',
         image: formData.image || undefined,
       });
     }
@@ -115,7 +115,15 @@ export default function AdminMenu() {
   };
 
   const toggleAvailability = (item: MenuItem) => {
-    updateMenuItem(item.id, { isAvailable: !item.isAvailable });
+    // Cycle through: available -> preorder -> unavailable -> available
+    const current = item.isAvailable;
+    let newStatus: 'available' | 'preorder' | boolean = 'available';
+    if (current === true || current === 'available' || current === undefined) {
+      newStatus = 'preorder';
+    } else if (current === 'preorder') {
+      newStatus = false;
+    }
+    updateMenuItem(item.id, { isAvailable: newStatus });
   };
 
   return (
@@ -206,8 +214,7 @@ export default function AdminMenu() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div className="form-group">
+              <div className="form-group">
                   <label className="form-label">Nama Menu *</label>
                   <input
                     type="text"
@@ -218,20 +225,6 @@ export default function AdminMenu() {
                     placeholder="Contoh: Nasi Goreng"
                   />
                 </div>
-
-                <div className="form-group">
-                  <label className="form-label">Emoji *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.emoji}
-                    onChange={e => setFormData({ ...formData, emoji: e.target.value })}
-                    className="form-input"
-                    placeholder="🍜"
-                    style={{ textAlign: 'center', fontSize: 20 }}
-                  />
-                </div>
-              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="form-group">
@@ -274,6 +267,19 @@ export default function AdminMenu() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="form-group">
+                  <label className="form-label">Ketersediaan *</label>
+                  <select
+                    required
+                    value={formData.availabilityType}
+                    onChange={e => setFormData({ ...formData, availabilityType: e.target.value as 'available' | 'preorder' })}
+                    className="form-select"
+                  >
+                    <option value="available">✓ Tersedia</option>
+                    <option value="preorder">📦 Pre Order</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
                   <label className="form-label">Stok</label>
                   <input
                     type="number"
@@ -284,18 +290,6 @@ export default function AdminMenu() {
                     className="form-input"
                     placeholder="10"
                   />
-                </div>
-
-                <div className="form-group" style={{ display: 'flex', alignItems: 'center', paddingTop: 24 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={formData.isAvailable}
-                      onChange={e => setFormData({ ...formData, isAvailable: e.target.checked })}
-                      style={{ width: 'auto' }}
-                    />
-                    <span style={{ fontWeight: 500 }}>Tersedia</span>
-                  </label>
                 </div>
               </div>
 
@@ -396,7 +390,8 @@ function AdminMenuCard({
   onToggle: () => void;
   onDelete: () => void;
 }) {
-  const isUnavailable = item.isAvailable === false;
+  const isPreOrder = item.isAvailable === 'preorder';
+  const isUnavailable = item.isAvailable === false || item.isAvailable === undefined;
 
   return (
     <div className={`menu-card2${isUnavailable ? ' unavailable' : ''}`}>
@@ -413,8 +408,10 @@ function AdminMenuCard({
         ) : (
           <div className="menu-img-placeholder">
             <span className="menu-img-emoji">{item.emoji}</span>
+            <span className="menu-img-name">{item.name}</span>
           </div>
         )}
+        {isPreOrder && <div className="menu-preorder-overlay"><span>Pre Order</span></div>}
         {isUnavailable && <div className="menu-unavail-overlay"><span>Habis</span></div>}
       </div>
 
@@ -427,7 +424,9 @@ function AdminMenuCard({
             {item.category === 'food' ? 'Makanan' : 'Minuman'}
           </span>
         </div>
-        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8, marginTop: 4, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Stok: {item.stock}</div>
+        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8, marginTop: 4, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          {isPreOrder ? '📦 Pre Order' : isUnavailable ? '❌ Stok Habis' : `✓ Tersedia (Stok: ${item.stock})`}
+        </div>
         
         {/* Action Buttons */}
         <div className="admin-card-actions">

@@ -457,7 +457,8 @@ body {
 /* ── Emoji placeholder (when no image) ── */
 .menu-img-placeholder {
   position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px;
   background: var(--surface2);
 }
 [data-theme="light"] .menu-img-placeholder {
@@ -467,6 +468,17 @@ body {
   background: linear-gradient(135deg, #1e1a2e, #251e38);
 }
 .menu-img-emoji { font-size: 52px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15)); }
+.menu-img-name { 
+  font-size: 14px; 
+  font-weight: 600; 
+  color: var(--text-primary, #374151); 
+  text-align: center; 
+  padding: 0 8px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ── Top badge (primary tag) ── */
 .menu-tag-badge {
@@ -513,6 +525,18 @@ body {
 }
 .menu-unavail-overlay span {
   background: var(--red); color: white;
+  padding: 6px 18px; border-radius: 99px;
+  font-weight: 800; font-size: 13px;
+}
+
+/* ── Preorder overlay ── */
+.menu-preorder-overlay {
+  position: absolute; inset: 0; z-index: 4;
+  background: rgba(251, 191, 36, 0.25); backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center;
+}
+.menu-preorder-overlay span {
+  background: #f59e0b; color: white;
   padding: 6px 18px; border-radius: 99px;
   font-weight: 800; font-size: 13px;
 }
