@@ -169,6 +169,7 @@ export const generateBookingCode = (): string => {
 export const orderTypeLabel = (type: string, tableNo: number | null): string => {
   if (type === 'dine-in') return `🪑 Dine In – Meja ${tableNo}`;
   if (type === 'pickup')  return '🛵 Pickup Online';
+  if (type === 'preorder') return '📦 Pre-Order';
   return '🥡 Take Away';
 };
 
@@ -187,6 +188,10 @@ export const getStatusLabel = (status: OrderStatus): string => {
     picked_up: '📦 Sudah Diambil',
     completed: '✅ Selesai',
     cancelled: '🚫 Dibatalkan',
+    // Pre-order statuses
+    preorder_pending: '📦 Pre-Order Masuk',
+    preorder_confirmed: '✅ Pre-Order Dikonfirmasi',
+    preorder_rejected: '❌ Pre-Order Ditolak',
   };
   return labels[status] || status;
 };
@@ -202,6 +207,10 @@ export const getStatusColor = (status: OrderStatus): string => {
     picked_up: '#4CAF50',
     completed: '#2E7D32',
     cancelled: 'var(--red)',
+    // Pre-order statuses
+    preorder_pending: '#9C27B0',
+    preorder_confirmed: 'var(--green)',
+    preorder_rejected: 'var(--red)',
   };
   return colors[status] || 'var(--text2)';
 };

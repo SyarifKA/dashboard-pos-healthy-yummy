@@ -1,27 +1,43 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '../../lib/AppContext';
 import RegistrationModal from '../shared/RegistrationModal';
+
+const ITEMS_PER_PAGE = 12;
 
 export default function AdminMembers() {
   const { members } = useApp();
   const [regOpen, setRegOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const filtered = members.filter(m =>
-    m.name.toLowerCase().includes(search.toLowerCase()) ||
-    m.phone.includes(search)
-  );
+  const filtered = useMemo(() => {
+    return members.filter(m =>
+      m.name.toLowerCase().includes(search.toLowerCase()) ||
+      m.phone.includes(search)
+    );
+  }, [members, search]);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedMembers = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(start, start + ITEMS_PER_PAGE);
+  }, [filtered, currentPage]);
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
 
   return (
     <>
       <div className="topbar">
         <div className="topbar-title">👥 Data Pelanggan</div>
-        <div className="topbar-right">
+        <div className="topbar-right" style={{ flexWrap: 'wrap', gap: 8 }}>
           <div className="search-wrap">
-            <input className="search-input" placeholder="Cari member…" value={search} onChange={e => setSearch(e.target.value)} />
+            <input className="search-input" placeholder="Cari member…" value={search} onChange={e => handleSearchChange(e.target.value)} style={{ width: 140 }} />
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => setRegOpen(true)}>+ Tambah Member</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setRegOpen(true)}>+ Tambah</button>
         </div>
       </div>
 
@@ -37,40 +53,54 @@ export default function AdminMembers() {
             <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => setRegOpen(true)}>+ Tambah Member</button>
           </div>
         ) : (
-          <div className="tbl-wrap">
-            <table className="data-tbl">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Nama</th>
-                  <th>No. HP</th>
-                  <th>Alamat</th>
-                  <th>Social Media</th>
-                  <th>Bergabung</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((m, i) => (
-                  <tr key={m.id}>
-                    <td>
-                      <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,var(--accent),var(--accent2))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 14 }}>
-                        {m.name[0].toUpperCase()}
-                      </div>
-                    </td>
-                    <td><span style={{ fontWeight: 700 }}>{m.name}</span></td>
-                    <td>{m.phone}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text2)' }}>{m.address || '—'}</td>
-                    <td style={{ fontSize: 12 }}>{m.socmed || '—'}</td>
-                    <td>
-                      <span className="badge" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>
-                        {m.joinedAt}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Members as Cards */}
+            <div className="members-card-grid">
+              {paginatedMembers.map(m => (
+                <div key={m.id} className="member-card">
+                  <div className="member-card-avatar">
+                    {m.name[0].toUpperCase()}
+                  </div>
+                  <div className="member-card-info">
+                    <div className="member-card-name">{m.name}</div>
+                    <div className="member-card-phone">📱 {m.phone}</div>
+                    {m.address && (
+                      <div className="member-card-address">📍 {m.address}</div>
+                    )}
+                    {m.socmed && (
+                      <div className="member-card-socmed">📘 {m.socmed}</div>
+                    )}
+                    <div className="member-card-joined">
+                      📅 Bergabung: {m.joinedAt}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button 
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  ← Prev
+                </button>
+                <div className="pagination-info">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <button 
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

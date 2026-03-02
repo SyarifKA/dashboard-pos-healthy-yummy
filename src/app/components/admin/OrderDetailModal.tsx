@@ -3,6 +3,40 @@ import { useState, useRef } from 'react';
 import { formatCurrency, orderTypeLabel, getStatusLabel, getStatusColor } from '../../lib/constants';
 import type { Order, OrderStatus } from '../../types';
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+  
+  return (
+    <button 
+      onClick={handleCopy}
+      style={{ 
+        background: copied ? 'var(--green)' : 'var(--accent)',
+        color: 'white',
+        border: 'none',
+        padding: '4px 10px',
+        borderRadius: 6,
+        fontSize: 11,
+        fontWeight: 600,
+        cursor: 'pointer',
+        marginLeft: 8,
+        transition: 'all 0.2s'
+      }}
+    >
+      {copied ? '✓ Copied!' : '📋 Copy'}
+    </button>
+  );
+}
+
 interface Props {
   order: Order;
   onClose: () => void;
@@ -26,6 +60,10 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus, onUpd
     out_for_delivery: 'picked_up',
     completed: null,
     cancelled: null,
+    // Pre-order statuses
+    preorder_pending: 'preorder_confirmed',
+    preorder_confirmed: 'completed',
+    preorder_rejected: null,
   };
 
   const nextLabel = nextStatus[order.status];
@@ -52,9 +90,13 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus, onUpd
         </div>
         <div className="modal-body">
           {/* Code + status */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div className="booking-code" style={{ fontSize: 22, padding: '10px 18px' }}>{order.code}</div>
+          <div className="modal-order-header">
+            <div className="modal-order-code">
+              <span className="booking-code" style={{ fontSize: 22, padding: '10px 18px' }}>{order.code}</span>
+              <CopyButton text={order.code} />
+            </div>
             <span 
+              className="modal-order-status"
               style={{ 
                 background: getStatusColor(order.status),
                 color: 'white',

@@ -3,6 +3,10 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useTheme } from '../../lib/ThemeContext';
 import { useApp } from '../../lib/AppContext';
 
+interface SidebarProps {
+  onClose?: () => void;
+}
+
 const ADMIN_NAV = [
   { key: '/admin',          icon: '📊', label: 'Dashboard' },
   { key: '/admin/orders',   icon: '📋', label: 'Pesanan' },
@@ -11,7 +15,7 @@ const ADMIN_NAV = [
   { key: '/admin/settings',  icon: '⚙️', label: 'Pengaturan' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
@@ -19,11 +23,23 @@ export default function Sidebar() {
 
   const pendingCount = orders?.filter(o => o.status === 'pending')?.length ?? 0;
 
+  const handleNavClick = (key: string) => {
+    router.push(key);
+    if (onClose) onClose();
+  };
+
   return (
     <nav className="sidebar">
+      {/* Mobile Close Button */}
+      {onClose && (
+        <button className="sidebar-close-btn" onClick={onClose}>
+          ✕
+        </button>
+      )}
+
       {/* Logo */}
       <div className="sidebar-logo">
-        <div className="logo-icon">🥗</div>
+        <img src="/logo/hy-logo.jpg" alt="Healthy Yummy Logo" className="logo-icon" />
         <div className="logo-text">
           <div className="logo-name">Healthy Yummy</div>
           <div className="logo-tagline">Admin Panel</div>
@@ -36,7 +52,7 @@ export default function Sidebar() {
         <button
           key={item.key}
           className={`nav-btn ${pathname === item.key ? 'active' : ''}`}
-          onClick={() => router.push(item.key)}
+          onClick={() => handleNavClick(item.key)}
         >
           <span className="nicon">{item.icon}</span>
           <span>{item.label}</span>

@@ -1,120 +1,201 @@
 'use client';
+import { useState, useMemo } from 'react';
 import { useApp } from '../../lib/AppContext';
 import { formatCurrency, orderTypeLabel, getStatusLabel, getStatusColor } from '../../lib/constants';
+import type { Order } from '../../types';
 import OrderDetailModal from './OrderDetailModal';
-import { useState } from 'react';
-import type { Order, OrderStatus } from '../../types';
+import ConfirmModal from '../shared/ConfirmModal';
 
 export default function AdminDashboard() {
-  const { orders, members, updateOrderStatus, updateOrderEvidence } = useApp();
+  const { orders, members, menuItems, updateOrderStatus } = useApp();
   const [detail, setDetail] = useState<Order | null>(null);
 
-  const paid    = orders?.filter(o => o.status === 'paid' || o.status === 'processing' || o.status === 'ready');
-  const pending = orders?.filter(o => o.status === 'waiting_payment');
-  const processing = orders?.filter(o => o.status === 'processing');
-  const ready = orders?.filter(o => o.status === 'ready');
-  const revenue = orders?.filter(o => o.status !== 'cancelled' && o.status !== 'waiting_payment').reduce((s, o) => s + o.total, 0);
-  const recent  = orders?.slice(0, 6);
+  // Confirm modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+    requireReason: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    requireReason: false
+  });
 
-  const stats = [
-    { label: 'Total Pesanan', val: orders?.length ?? 0,   sub: 'Semua waktu',       color: 'var(--accent)' },
-    { label: 'Menunggu',      val: pending?.length ?? 0,  sub: 'Perlu konfirmasi',  color: 'var(--amber)'  },
-    { label: 'Diproses',      val: processing?.length ?? 0, sub: 'Sedang dibuat',    color: 'var(--blue)'   },
-    { label: 'Siap',         val: ready?.length ?? 0,      sub: 'Siap disajikan',   color: 'var(--green)'  },
-  ];
+  // Stats
+  const stats = useMemo(() => {
+    const today = new Date().toDateString();
+    const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === today);
+    const todayRevenue = todayOrders
+      .filter(o => o.status !== 'cancelled' && o.status !== 'preorder_rejected')
+      .reduce((sum, o) => sum + o.total, 0);
+    const pendingOrders = orders.filter(o => 
+      o.status === 'waiting_payment' || 
+      o.status === 'pending' || 
+      o.status === 'preorder_pending'
+    ).length;
+    const activeMembers = members.length;
+    const menuCount = menuItems.filter(m => m.isAvailable).length;
+    return { todayOrders: todayOrders.length, todayRevenue, pendingOrders, activeMembers, menuCount };
+  }, [orders, members, menuItems]);
+
+  // Recent orders (last 10)
+  const recentOrders = useMemo(() => {
+    return [...orders]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10);
+  }, [orders]);
+
+  const isMember = (customerName: string, memberId: number | null) => {
+    if (memberId) return true;
+    return members.some(m => m.name.toLowerCase() === customerName.toLowerCase());
+  };
+
+  // Handler for reject preorder
+  const handleRejectPreorder = (order: Order) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Tolak Pre-Order',
+      message: `Apakah Anda yakin ingin menolak pre-order ${order.code}?`,
+      confirmLabel: 'Tolak',
+      requireReason: true,
+      onConfirm: () => {
+        updateOrderStatus(order.id, 'preorder_rejected');
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
 
   return (
     <>
       <div className="topbar">
         <div className="topbar-title">📊 Dashboard</div>
-        <div className="topbar-right" style={{ fontSize: 13, color: 'var(--text2)' }}>
-          Revenue: <strong style={{ color: 'var(--green)', marginLeft: 4 }}>{formatCurrency(revenue)}</strong>
-        </div>
       </div>
 
       <div className="page-content">
-        {/* Stats */}
-        <div className="stats-grid">
-          {stats.map(s => (
-            <div key={s.label} className="stat-card">
-              <div className="stat-label">{s.label}</div>
-              <div className="stat-val" style={{ color: s.color }}>{s.val}</div>
-              <div className="stat-sub">{s.sub}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Revenue card */}
-        <div style={{
-          background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
-          borderRadius: 16, padding: '18px 22px', marginBottom: 22,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
-          <div>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Total Revenue (Lunas)</div>
-            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 30, fontWeight: 800, color: 'white', marginTop: 4 }}>
-              {formatCurrency(revenue)}
-            </div>
+        {/* Stats Cards */}
+        <div className="stats-grid" style={{ marginBottom: 24 }}>
+          <div className="stat-card">
+            <div className="stat-label">📋 Pesanan Hari Ini</div>
+            <div className="stat-value">{stats.todayOrders}</div>
           </div>
-          <div style={{ fontSize: 48 }}>💰</div>
+          <div className="stat-card">
+            <div className="stat-label">💰 Pendapatan Hari Ini</div>
+            <div className="stat-value" style={{ color: 'var(--green)' }}>{formatCurrency(stats.todayRevenue)}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">⏳ Menunggu Pembayaran</div>
+            <div className="stat-value" style={{ color: 'var(--amber)' }}>{stats.pendingOrders}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">👥 Member Aktif</div>
+            <div className="stat-value" style={{ color: 'var(--blue)' }}>{stats.activeMembers}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">🍽️ Menu Tersedia</div>
+            <div className="stat-value" style={{ color: 'var(--purple)' }}>{stats.menuCount}</div>
+          </div>
         </div>
 
-        {/* Recent orders */}
-        <div className="section-title">Pesanan Terbaru</div>
-        {recent?.length === 0 ? (
-          <div className="empty-state"><div className="empty-state-icon">📋</div><div>Belum ada pesanan</div></div>
-        ) : (
-          <div className="tbl-wrap">
-            <table className="data-tbl">
-              <thead>
-                <tr>
-                  <th>Kode</th>
-                  <th>Pelanggan</th>
-                  <th>Tipe</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent?.map(o => (
-                  <tr key={o.id} className={o.status === 'pending' || o.status === 'waiting_payment' ? 'row-pending' : ''}>
-                    <td><span style={{ fontFamily: 'Playfair Display,serif', fontWeight: 800, color: 'var(--accent)' }}>{o.code}</span></td>
-                    <td><span style={{ fontWeight: 700 }}>{o.customerName}</span></td>
-                    <td style={{ fontSize: 12 }}>{orderTypeLabel(o.orderType, o.tableNo)}</td>
-                    <td><span style={{ fontFamily: 'Playfair Display,serif', fontWeight: 800 }}>{formatCurrency(o.total)}</span></td>
-                    <td><span style={{ background: getStatusColor(o.status), color: 'white', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>{getStatusLabel(o.status)}</span></td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 5 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setDetail(o)}>Detail</button>
+        {/* Recent Orders */}
+        <div className="section">
+          <div className="section-title">📋 Pesanan Terbaru</div>
+          
+          {recentOrders.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">📋</div>
+              <div>Belum ada pesanan</div>
+            </div>
+          ) : (
+            <div className="orders-card-grid">
+              {recentOrders.map(o => {
+                const member = isMember(o.customerName, o.memberId);
+                return (
+                  <div 
+                    key={o.id} 
+                    className="order-card"
+                    onClick={() => setDetail(o)}
+                  >
+                    <div className="order-card-header">
+                      <span className="order-card-code">{o.code}</span>
+                      <span 
+                        className="order-card-status"
+                        style={{ background: getStatusColor(o.status) }}
+                      >
+                        {getStatusLabel(o.status)}
+                      </span>
+                    </div>
+                    
+                    <div className="order-card-customer">
+                      <span className="order-card-name">{o.customerName}</span>
+                      {member && <span className="order-card-badge-member">MEMBER</span>}
+                    </div>
+                    
+                    <div className="order-card-details">
+                      <div className="order-card-type">
+                        {orderTypeLabel(o.orderType, o.tableNo)}
+                        {o.isPreOrder && <span className="order-card-badge-preorder">PRE-ORDER</span>}
+                      </div>
+                      <div className="order-card-time">
+                        {new Date(o.createdAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
+                      </div>
+                    </div>
+                    
+                    <div className="order-card-footer">
+                      <div className="order-card-total">{formatCurrency(o.total)}</div>
+                      <div className="order-card-actions" onClick={e => e.stopPropagation()}>
                         {(o.status === 'pending' || o.status === 'waiting_payment') && (
-                          <button className="btn btn-green btn-sm" onClick={() => updateOrderStatus(o.id, 'paid')}>✓ Bayar</button>
+                          <>
+                            <button className="btn btn-green btn-sm" onClick={() => updateOrderStatus(o.id, 'paid')}>💳 Bayar</button>
+                          </>
                         )}
-                        {/* Untuk semua tipe pesanan setelah paid -> processing */}
                         {o.status === 'paid' && (
                           <button className="btn btn-blue btn-sm" onClick={() => updateOrderStatus(o.id, 'processing')}>👨‍🍳 Proses</button>
                         )}
                         {o.status === 'processing' && (
-                          <button className="btn btn-blue btn-sm" onClick={() => updateOrderStatus(o.id, 'ready')}>✓ Siap</button>
+                          <button className="btn btn-green btn-sm" onClick={() => updateOrderStatus(o.id, 'ready')}>🍽️ Siap</button>
                         )}
-                        {/* Untuk pickup: setelah ready -> picked_up */}
-                        {o.status === 'ready' && o.orderType === 'pickup' && (
-                          <button className="btn btn-green btn-sm" onClick={() => updateOrderStatus(o.id, 'picked_up')}>✓ Diambil</button>
+                        {o.status === 'ready' && (
+                          <button className="btn btn-green btn-sm" onClick={() => updateOrderStatus(o.id, 'completed')}>🎉 Selesai</button>
                         )}
-                        {(o.status === 'ready' || o.status === 'picked_up') && (
-                          <button className="btn btn-green btn-sm" onClick={() => updateOrderStatus(o.id, 'completed')}>✓ Selesai</button>
+                        {o.status === 'preorder_pending' && (
+                          <>
+                            <button className="btn btn-green btn-sm" onClick={() => updateOrderStatus(o.id, 'preorder_confirmed')}>✔️ Konfirmasi</button>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleRejectPreorder(o)}>❌ Tolak</button>
+                          </>
                         )}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {detail && <OrderDetailModal order={detail} onClose={() => setDetail(null)} onUpdateStatus={(id, status) => { updateOrderStatus(id, status); setDetail(null); }} onUpdateEvidence={(id, photo) => { updateOrderEvidence(id, photo); }} />}
+      {detail && (
+        <OrderDetailModal
+          order={detail}
+          onClose={() => setDetail(null)}
+          onUpdateStatus={(id, status) => { updateOrderStatus(id, status); setDetail(null); }}
+          onUpdateEvidence={(id, photo) => { }}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmLabel={confirmModal.confirmLabel}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        requireReason={confirmModal.requireReason}
+      />
     </>
   );
 }

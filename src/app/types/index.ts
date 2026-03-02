@@ -1,8 +1,8 @@
 export type Theme = 'dark' | 'light';
 export type Category = 'food' | 'drink' | 'all';
-export type OrderType = 'pickup' | 'dine-in' | 'takeaway';
+export type OrderType = 'pickup' | 'dine-in' | 'takeaway' | 'preorder';
 export type PaymentMethod = 'cash' | 'debit' | 'transfer' | 'qris';
-export type OrderStatus = 'pending' | 'waiting_payment' | 'paid' | 'processing' | 'out_for_delivery' | 'ready' | 'picked_up' | 'completed' | 'cancelled';
+export type OrderStatus = 'pending' | 'waiting_payment' | 'paid' | 'processing' | 'out_for_delivery' | 'ready' | 'picked_up' | 'completed' | 'cancelled' | 'preorder_pending' | 'preorder_confirmed' | 'preorder_rejected';
 
 // export interface MenuItem {
 //   id: number;
@@ -52,6 +52,9 @@ export interface Order {
   items: CartItem[];
   total: number;
   status: OrderStatus;
+  isPreOrder?: boolean;    // Apakah ini pesanan pre-order
+  preorderDate?: string;   // Tanggal pengambilan pre-order
+  rejectReason?: string;   // Alasan penolakan pre-order
   evidencePhoto?: string;  // URL foto bukti pickup untuk order pickup
   createdAt: string;
 }
